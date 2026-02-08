@@ -1,0 +1,17 @@
+wireguard_manager
+\-- InterfaceManager.py     
+| - No runtime peer management here
+| - It’s file + lifecycle oriented
+| - load() just binds to an interface
+|
+\-- interface.py  
+| - Uses wg set under the hood
+| - show() is the single source of truth
+| - Peer objects are views over that data
+|
+\-- peer.py
+| - Peer never calls wg
+| - It delegates to interface.show()
+| - That avoids repeated system calls and race conditions
+|
+└── utils.py       # command execution helpers
