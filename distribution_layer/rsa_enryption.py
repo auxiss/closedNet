@@ -30,7 +30,7 @@ def generate_rsa_keys():
 
     return pem_private, pem_public
 
-def load_rsa_public_key_key(pem_public: bytes):
+def load_rsa_public_key(pem_public: bytes):
     """
     Load RSA public key from PEM bytes.
     """
@@ -54,6 +54,44 @@ def load_rsa_private_key(pem_private: bytes):
     return private_key
 
 
+def sign_message(private_key: bytes, message: bytes) -> bytes:
+    """
+    Sign a message using the RSA private key.
+    """
+    private_key = load_rsa_private_key(private_key)
+    signature = private_key.sign(
+        message,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    return signature
+
+
+def verify_signature(public_key: bytes, message: bytes, signature: bytes) -> bool:
+    """
+    Verify a message's signature using the RSA public key.
+    Returns True if valid, False otherwise.
+    """
+    public_key = load_rsa_public_key(public_key)
+    try:
+        public_key.verify(
+            signature,
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return True
+    except Exception:
+        return False
+
+
+
 
 
 
@@ -62,15 +100,18 @@ def load_rsa_private_key(pem_private: bytes):
 
 
 class RSAUser:
-    def __init__(self, private_key, public_key, associate_public_key):
+    def __init__(self, private_key: bytes,
+                  public_key: bytes,
+                    associate_public_key: bytes):
         """
+        :format PEM encoded keys as bytes
         :param private_key: Your RSA private key
         :param public_key: Your RSA public key
         :param associate_public_key: The other party’s public key
         """
-        self.private_key = private_key
-        self.public_key = public_key
-        self.associate_public_key = associate_public_key
+        self.private_key = load_rsa_private_key(private_key)
+        self.public_key = load_rsa_public_key(public_key)
+        self.associate_public_key = load_rsa_public_key(associate_public_key)
 
     def authenticate(self, message: bytes) -> bytes:
         """
@@ -146,19 +187,21 @@ if __name__ == "__main__":
     print("set 2 of Keys generated successfully.")    
 
 
+    print(type(key_pair_1[0]), type(key_pair_1[1]))
+
 
 
     user1 = RSAUser(
-        private_key=load_rsa_private_key(key_pair_1[0]),
-        public_key=load_rsa_public_key_key(key_pair_1[1]),
-        associate_public_key=load_rsa_public_key_key(key_pair_2[1])
+        private_key=key_pair_1[0],
+        public_key=key_pair_1[1],
+        associate_public_key=key_pair_2[1]
     )
 
 
     user2 = RSAUser(
-        private_key=load_rsa_private_key(key_pair_2[0]),
-        public_key=load_rsa_public_key_key(key_pair_2[1]),  
-        associate_public_key=load_rsa_public_key_key(key_pair_1[1])
+        private_key=key_pair_2[0],
+        public_key=key_pair_2[1],  
+        associate_public_key=key_pair_1[1]
     )
 
 

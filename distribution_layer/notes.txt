@@ -1,0 +1,21 @@
+
+
+in this layer we use a system of posts to a rendevu point (untrusted server) to distribute the andpoint informasion.
+for example peer A wonts to connect to peers b, c, d and so do those peer.
+peer a will prepair a post containing the below.
+
+post:
+    1. pub_key
+    2. priv_info (blake3b)
+
+priv_info:
+    1. endpoint
+    2. wireguard_iface_pub_key
+    3. username
+    4. time_stump 
+
+priv_info is encrypted with a gurp key shard with peers b, c, d.
+this process is repeated for each peer that is part of the grup until all member peer have eachother informasion
+
+
+
