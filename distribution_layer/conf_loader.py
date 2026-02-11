@@ -65,16 +65,30 @@ def get_members_from_config(file_name: str) -> list[dict]:
 
 
 
+
+
+
+
+
 if __name__ == "__main__":
     # Example usage:
-    token = input("Enter your GitHub token: ")
+    #token = input("Enter your GitHub token: ")
     username = input("Enter your username: ")
     group_name = input("Enter the group name: ")
-    group_key = input("Enter the group key (must be a string): ")
+    #group_key = input("Enter the group key (must be a string): ")
 
     file_name = f"{username}_{group_name}.json"
 
-    create_config_file(token, username, group_name, group_key)
-    config = load_config_file(file_name)
-    print(config)
+    #create_config_file(token, username, group_name, group_key)
+    #config = load_config_file(file_name)
+    #print(config)
 
+    print('add members to config file:')
+    name = input("Enter member name: ")
+    rsa_public_key = input("Enter member's RSA public key: ")
+    add_member_to_config(file_name, name, rsa_public_key)
+    
+    members = get_members_from_config(file_name)
+    print("\nMembers in config file:")
+    for member in members:
+        print(f"-- Name: {member['name']}, RSA Public Key: {member['rsa_public_key']}")
