@@ -3,14 +3,13 @@ from typing import Optional, List
 
 
 class GitHubGistUserStore:
-    BASE_URL = "https://api.github.com"
-    FILENAME = "user_data.txt"
+    
 
     def __init__(
         self,
         token: str,
         owner: str,
-        group: str,
+        group_name: str,
         gist_id: Optional[str] = None,
         public: bool = False,
     ):
@@ -22,9 +21,13 @@ class GitHubGistUserStore:
         :param public: Whether created gists should be public
         """
         self.owner = owner
-        self.group = group
+        self.group = group_name
         self.gist_id = gist_id
         self.public = public
+
+        self.BASE_URL = "https://api.github.com"
+        self.FILENAME = "user_data.txt"
+
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -162,17 +165,75 @@ class GitHubGistUserStore:
         return contents
 
 
+    def get_gists_by_key_discription(self, key: str) -> List[dict]:
+        """
+        Get all gists that have a specific key in their description.
+        """
+        gists = []
+        page = 1
+        while True:
+            response = self.session.get(
+                f"{self.BASE_URL}/gists",
+                params={"per_page": 30, "page": page}
+            )
+            response.raise_for_status()
+            page_gists = response.json()
 
-if __name__ == "__main__":
+            if not page_gists:
+                break
 
+            for gist in page_gists:
+                if key in gist.get("description", ""):
+                    gists.append(gist)
+
+            page += 1
+
+        return gists
+    
+
+
+    def get_gist_contents(self, gist: dict) -> dict:
+        """
+        Fetch the contents of a specific gist.
+        """
+
+        files = gist.get("files", {})
+        contents = {}
+        for self.FILENAME, file_obj in files.items():
+            content = file_obj.get("content")
+            if content is None:
+                # Fetch via raw_url if content is not available
+                raw_url = file_obj.get("raw_url")
+                if raw_url:
+                    resp = self.session.get(raw_url)
+                    resp.raise_for_status()
+                    content = resp.text
+            contents[self.FILENAME] = content
+        return contents
+    
+
+    def get_gist_id(self, gist: dict) -> int:
+        """
+        Extract the gist ID from a gist object.
+        """
+        return gist.get("id")
+    
+
+
+
+##tests
+
+
+
+def test1(token: str):
     store = GitHubGistUserStore(
-        token="your_github_token_here",   #place your GitHub token here
+        token=token,
         owner="your-username",
-        group="backend-team",
+        group_name="backend-team",
         public=True
     )
 
-    '''# Automatically creates on first call
+    # Automatically creates on first call
     gist_id = store.upsert_user(
         "user_id=42\nendpoint=/prs\nactive=true"
     )
@@ -192,3 +253,30 @@ if __name__ == "__main__":
     for content in store.get_group_user_contents():
         print('---')
         print(content)
+
+
+
+def test2(token: str):
+    store = GitHubGistUserStore(
+        token=token,
+        owner="your-username",
+        group_name="backend-team",
+        public=True
+    )
+
+    # Fetch gists by key in description
+    key = "backend-team"
+    gists = store.get_gists_by_key_discription(key)
+    print(f"Found {len(gists)} gists with '{key}' in description.")
+
+     # Fetch contents of the first gist
+    for gist in gists:
+        contents = store.get_gist_contents(gist)
+        print(f"Gist ID: {store.get_gist_id(gist)}")
+        print(f"Contents: {contents}")
+
+
+if __name__ == "__main__":
+    token = '' #  <----- add token hire
+
+    test2(token)
