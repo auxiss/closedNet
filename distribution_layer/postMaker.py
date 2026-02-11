@@ -57,19 +57,27 @@ def read_post(post: str, group_key: bytes) -> dict:
     """
     Reads a post and returns the decrypted contents.
     """
-    post_data = json.loads(post)
+    try:
+        post_data = json.loads(post)
+    except json.JSONDecodeError:
+        return None
 
     sender_pub_key = bytes.fromhex(post_data["pub_key"])
     signature = bytes.fromhex(post_data["signature"])
     encrypted_payload = bytes.fromhex(post_data["priv_info"])
 
-    decrypted_payload = blake.decrypt(encrypted_payload, group_key)
+    try:
+        decrypted_payload = blake.decrypt(encrypted_payload, group_key)
+    except Exception:
+        return None
 
     valid_signature = rsa.verify_signature(sender_pub_key, decrypted_payload, signature)
 
+    if not valid_signature: 
+        return None
+
     post_data = {
         "sender_pub_key": sender_pub_key,
-        "valid": valid_signature,
         "payload": json.loads(decrypted_payload.decode())
     }
 

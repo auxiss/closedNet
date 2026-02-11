@@ -1,1 +1,0 @@
-distribution_server = 'https://example.com/distribution'
