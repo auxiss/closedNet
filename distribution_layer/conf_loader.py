@@ -1,14 +1,14 @@
 import json
 import os
 import sys
-import rsa_enryption as rsa
+from distribution_layer import rsa_enryption as rsa
 
 
 def create_config_file(token: str, username: str, group_name: str, group_key: str):
 
     key_pair = rsa.generate_rsa_keys()
 
-    file_name = f"{username}_{group_name}.json"
+    file_name = f"config.json"
 
 
     config = {
@@ -23,6 +23,7 @@ def create_config_file(token: str, username: str, group_name: str, group_key: st
 
     #check if it already exists
     if os.path.exists(file_name):
+        
         print("Config file already exists. Do you want to overwrite it? (y/n)")
         choice = input().lower()
         if choice != 'y':
@@ -35,7 +36,9 @@ def create_config_file(token: str, username: str, group_name: str, group_key: st
 
 
 
-def load_config_file(file_name) -> dict:
+def load_config_file() -> dict:
+    file_name = "config.json"
+
     if not os.path.exists(file_name):
         print("Config file not found. Please create a config file first.")
         sys.exit(1)
@@ -45,7 +48,8 @@ def load_config_file(file_name) -> dict:
     
     return config
 
-def add_member_to_config(file_name: str, name: str, rsa_public_key: str):
+def add_member_to_config(name: str, rsa_public_key: str):
+    file_name = "config.json"
     member_data = {
         "name": name,
         "rsa_public_key": rsa_public_key
@@ -59,7 +63,8 @@ def add_member_to_config(file_name: str, name: str, rsa_public_key: str):
         json.dump(config, f, indent=4)
     print("Member added to config file successfully.")
 
-def get_members_from_config(file_name: str) -> list[dict]:
+def get_members_from_config() -> list[dict]:
+    file_name = "config.json"
     config = load_config_file(file_name)
     return config.get("members", [])
 
@@ -77,8 +82,6 @@ if __name__ == "__main__":
     group_name = input("Enter the group name: ")
     #group_key = input("Enter the group key (must be a string): ")
 
-    file_name = f"{username}_{group_name}.json"
-
     #create_config_file(token, username, group_name, group_key)
     #config = load_config_file(file_name)
     #print(config)
@@ -86,9 +89,9 @@ if __name__ == "__main__":
     print('add members to config file:')
     name = input("Enter member name: ")
     rsa_public_key = input("Enter member's RSA public key: ")
-    add_member_to_config(file_name, name, rsa_public_key)
+    add_member_to_config(name, rsa_public_key)
     
-    members = get_members_from_config(file_name)
+    members = get_members_from_config()
     print("\nMembers in config file:")
     for member in members:
         print(f"-- Name: {member['name']}, RSA Public Key: {member['rsa_public_key']}")

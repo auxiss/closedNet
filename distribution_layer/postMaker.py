@@ -1,7 +1,7 @@
 import time
-import blake2b_wrapper as blake
+from distribution_layer import blake2b_wrapper as blake
 import json
-import rsa_enryption as rsa
+from distribution_layer import rsa_enryption as rsa
 
 def create_payload(endpoint: str,
                     username: str,

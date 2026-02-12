@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-import Interface
+from wireguard_manager import Interface
 
 class Peer:
     def __init__(self, interface: Interface, public_key: str):

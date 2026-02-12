@@ -1,6 +1,6 @@
 import subprocess
-import peer
-from utils import run_command
+from wireguard_manager  import peer
+from wireguard_manager.utils import run_command
 import json
 import re
 

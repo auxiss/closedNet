@@ -1,7 +1,7 @@
-import Interface
+from wireguard_manager import Interface
 import os
 from pathlib import Path
-from utils import run_command
+from wireguard_manager.utils import run_command
 
 # manage config files + interface lifecycle
 class InterfaceManager:

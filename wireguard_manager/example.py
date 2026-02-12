@@ -1,4 +1,4 @@
-import InterfaceManager
+from wireguard_manager import InterfaceManager
 
 
 
@@ -13,11 +13,11 @@ ifaces = mgr.list_interfaces()  # ['wg0', 'wg1']
 
 for iface_nsme in ifaces:
 
-    #mgr.up(iface)  # bring up interface
+    mgr.up(iface_nsme)  # bring up interface
     
     iface = mgr.load(iface_nsme)
     iface_info = iface.show()  # dict with interface info like public key, listening port, etc.
-    print(iface_info)
+    #print(iface_info)
     if iface_info["state"] == "up":
         print(f"{iface_info['interface']} is up with public key {iface_info['public_key']} and listening port {iface_info['listening_port']}")
 

@@ -1,6 +1,6 @@
-import postMaker
-import gist_wrapper
-import rsa_enryption as rsa
+from distribution_layer import postMaker
+from distribution_layer import gist_wrapper
+from distribution_layer import rsa_enryption as rsa
 
 
 class Group:
