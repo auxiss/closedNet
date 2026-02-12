@@ -159,7 +159,7 @@ ListenPort = 51820
 
         print("[*] Peer discovery thread started")
         config = conf_loader.load_config_file()
-        known_members = config.get("members", [])
+        known_members = config["members"]
         
         while self.running:
             try:
@@ -186,20 +186,35 @@ ListenPort = 51820
             payload = member_info["payload"]
             endpoint = payload["endpoint"]
             wg_pk = payload["wg_pk"]
-            allowed_ips = "10.0.0.0/24"  # Adjust as needed
+            allowed_ips = ["10.0.0.0/24"]  # Adjust as needed
             
-            # Use wg set to add/update peer
-            subprocess.run(
-                ["wg", "set", self.iface_name, "peer", wg_pk, 
-                 "endpoint", endpoint, "allowed-ips", allowed_ips],
-                check=True,
-                capture_output=True
-            )
+            # Check if peer already exists
+            existing_peers = self.interface.get_peers()
+            
+            if wg_pk in existing_peers:
+                # Update existing peer
+                self.interface.update_peer(
+                    wg_pk,
+                    endpoint=endpoint,
+                    allowed_ips=allowed_ips,
+                    persistent_keepalive=25
+                )
+            else:
+                # Create new peer
+                self.interface.create_peer(
+                    wg_pk,
+                    endpoint=endpoint,
+                    allowed_ips=allowed_ips,
+                    persistent_keepalive=25
+                )
         except Exception as e:
             print(f"[-] Failed to add/update peer: {e}")
 
     def add_peer(self, name: str, rsa_pub_key: str):
         """Add a peer to the local config"""
+
+        rsa_pub_key = rsa_pub_key.replace('\\n','\n').replace(' ','')
+
         print(f"[*] Adding peer '{name}' to config...")
         config = conf_loader.load_config_file()
         members = config.get("members", [])
@@ -253,6 +268,7 @@ ListenPort = 51820
 
 if __name__ == "__main__":
     # Example usage
+
     try:
         print("[*] Starting closedNet Network Manager...")
         manager = NetManager()
