@@ -23,6 +23,9 @@ class NetManager():
         
         # Initialize: load config, setup interface, initialize group
         self._initialize()
+
+        #print inforamsion to be sheared 
+
     
     def _initialize(self):
         """Initialize the network manager"""
@@ -151,6 +154,9 @@ ListenPort = 51820
 
     def _peer_discovery_thread(self):
         """Background thread: continuously discover and update peers"""
+
+        threshold = 30
+
         print("[*] Peer discovery thread started")
         config = conf_loader.load_config_file()
         known_members = config.get("members", [])
@@ -169,10 +175,10 @@ ListenPort = 51820
                     print(f"    [+] Updated peer: {member['name']}")
                 
                 # Sleep before next discovery
-                time.sleep(30)  # Poll every 30 seconds
+                time.sleep(threshold)  # Poll every [threshold] seconds
             except Exception as e:
                 print(f"[-] Error in peer discovery: {e}")
-                time.sleep(30)
+                time.sleep(threshold)
 
     def _add_or_update_peer_live(self, member_info: dict):
         """Add or update a peer in live WireGuard interface"""
@@ -251,14 +257,84 @@ if __name__ == "__main__":
         print("[*] Starting closedNet Network Manager...")
         manager = NetManager()
         print(f"[+] NetManager initialized with interface {manager.iface_name}")
-        print("[*] Press Ctrl+C to stop")
+        print("[*] Press Ctrl+C to stop\n")
         
-        # Keep running
+        # Interactive peer management
+        print("[*] --- Peer Management Menu ---")
+        print("[*] Commands:")
+        print("    'add' - Add a new peer")
+        print("    'remove' - Remove a peer")
+        print("    'list' - List all peers")
+        print("    'status' - Show interface status")
+        
+        
+        
+     
         while True:
-            time.sleep(1)
+            mode = input("Select mode [add/remove/list/status]: ").strip().lower()
+        
+            if mode == "add":
+                print("\n[*] Adding peers (type 'done' when finished):")
+                while True:
+                    peer_name = input("  Enter peer name (or 'done'): ").strip()
+                    if peer_name.lower() == 'done':
+                        break
+                    peer_pubkey = input(f"  Enter {peer_name}'s RSA public key: ").strip()
+                    if peer_pubkey:
+                        manager.add_peer(peer_name, peer_pubkey)
+                        print()
+                print("[+] Done adding peers\n")
+            
+            elif mode == "remove":
+                print("\n[*] Removing peers:")
+                config = conf_loader.load_config_file()
+                members = config.get("members", [])
+                if not members:
+                    print("[-] No peers in config")
+                else:
+                    print("[*] Available peers:")
+                    for i, member in enumerate(members, 1):
+                        print(f"    {i}. {member['name']}")
+                    while True:
+                        peer_name = input("  Enter peer name to remove (or 'done'): ").strip()
+                        if peer_name.lower() == 'done':
+                            break
+                        manager.remove_peer(peer_name)
+                        print()
+                print("[+] Done\n")
+            
+            elif mode == "list":
+                print("\n[*] Current peers:")
+                config = conf_loader.load_config_file()
+                members = config.get("members", [])
+                if not members:
+                    print("[-] No peers configured")
+                else:
+                    for member in members:
+                        print(f"  - {member['name']}")
+                print()
+            
+            elif mode == "status":
+                print("\n[*] Interface status:")
+                iface_data = manager.interface.show()
+                print(f"  Interface: {iface_data['interface']}")
+                print(f"  State: {iface_data['state']}")
+                print(f"  Public Key: {iface_data['public_key']}")
+                print(f"  Listening Port: {iface_data['listening_port']}")
+                print(f"  Connected Peers: {len(iface_data['peers'])}")
+                for peer_pk, peer_info in iface_data['peers'].items():
+                    print(f"    - {peer_pk}: {peer_info['endpoint']}")
+                print()
+            
     except KeyboardInterrupt:
         print("\n[*] Shutting down...")
         print(f"[*] Bringing down interface {manager.iface_name}...")
+        manager.stop_peer_discovery()
+        manager.interface_manager.down(manager.iface_name)
+        print("[+] Interface brought down")
+        print("[+] Shutdown complete")
+    except Exception as e:
+        print(f"[-] Error: {e}")
         manager.stop_peer_discovery()
         manager.interface_manager.down(manager.iface_name)
         print("[+] Interface brought down")
