@@ -4,48 +4,51 @@ from distribution_layer import group_manager
 from distribution_layer import conf_loader
 import threading
 import time
-import socket
-import subprocess
 import json
 import os
+import utils
+
+
+'''group_manager.test1()
+print('dome')
+exit(0)#'''
 
 
 class NetManager():
-    def __init__(self, config_file: str = "config.json", iface_name: str = 'closednet0', config_dir: str = "/etc/wireguard"):
+    def __init__(self,
+                  distribute_config_file: str = "config.json",
+                  wire_guard_config_dir: str = "/etc/wireguard",
+                  iface_name: str = 'closednet0', 
+                  ):
+        
+        #wireguad stuff
         self.iface_name = iface_name
-        self.config_dir = config_dir
-        self.config_file = config_file
-        self.interface_manager = InterfaceManager(config_dir)
-        self.group = None
+        self.wire_guard_config_dir = wire_guard_config_dir
+        self.interface_manager = InterfaceManager(wire_guard_config_dir)
         self.interface = None
+
+        #distro stuff
+        self.distribute_config_file = distribute_config_file
+        self.group = None
         self.discovery_thread = None
         self.running = False
+
+
+        self._initialize_wireguard()
+        self._initialize_distrobusion()
+
         
-        # Initialize: load config, setup interface, initialize group
-        self._initialize()
-
-        #print inforamsion to be sheared 
-
+        
     
-    def _initialize(self):
-        """Initialize the network manager"""
-        # Load or create local config
-        if not os.path.exists(self.config_file):
-            print(f"Config file {self.config_file} not found. Creating new config...")
-            token = input("Enter your GitHub token: ").strip()
-            username = input("Enter your username: ").strip()
-            group_name = input("Enter the group name: ").strip()
-            group_key = input("Enter the group key: ").strip()
-            conf_loader.create_config_file(token, username, group_name, group_key)
-        
-        print(f"[*] Loading config from {self.config_file}...")
-        config = conf_loader.load_config_file()
-        print(f"[+] Config loaded successfully")
-        
-        # Setup or load WireGuard interface
+    def _initialize_wireguard(self):
+        """Initialize WireGuard interface"""
+
+
+
+        # Setup or load 
         if not self.interface_manager.exists(self.iface_name):
             print(f"[*] Creating new WireGuard interface: {self.iface_name}")
-            self._create_interface(config)
+            #net yet done
             print(f"[+] Interface created")
         else:
             print(f"[*] Interface {self.iface_name} already exists")
@@ -57,6 +60,28 @@ class NetManager():
         self.interface_manager.up(self.iface_name)
         print(f"[+] Interface is now up")
         
+
+
+
+    def _initialize_distrobusion(self):
+        """ load config and initialize goup """
+
+        # Load or create local config
+        if not os.path.exists(self.distribute_config_file):
+            print(f"Config file {self.distribute_config_file} not found. Creating new config...")
+            token = input("Enter your GitHub token: ").strip()
+            username = input("Enter your username: ").strip()
+            group_name = input("Enter the group name: ").strip()
+            group_key = input("Enter the group key: ").strip()
+            conf_loader.create_config_file(token, username, group_name, group_key)
+        
+        print(f"[*] Loading config from {self.distribute_config_file}...")
+        config = conf_loader.load_config_file()
+        print(f"[+] Config loaded successfully")
+        
+
+
+
         # Initialize group manager
         print(f"[*] Initializing group manager...")
         key_pair = (config["PEM_private_key"].encode(), config["PEM_public_key"].encode())
@@ -70,9 +95,11 @@ class NetManager():
         )
         print(f"[+] Group manager initialized for group '{config['group_name']}'")
         
+
+        
         # Post our info
         print(f"[*] Detecting public IPv6 address...")
-        ipv6 = self._find_public_ipv6()
+        ipv6 = utils.get_public_ip_v6()
         if ipv6:
             print(f"[+] Found public IPv6: {ipv6}")
         else:
@@ -89,55 +116,7 @@ class NetManager():
         self.start_peer_discovery()
         print(f"[+] Peer discovery thread started")
     
-    def _create_interface(self, config: dict):
-        """Create a new WireGuard interface"""
-        # Generate basic interface config
-        try:
-            print("    [*] Generating WireGuard keys...")
-            result = subprocess.run(
-                ['wg', 'genkey'],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            private_key = result.stdout.strip()
-            
-            # Generate public key from private key
-            result = subprocess.run(
-                ['wg', 'pubkey'],
-                input=private_key,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            public_key = result.stdout.strip()
-            print("    [+] Keys generated successfully")
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate WireGuard keys: {e}")
-        
-        # Create interface config
-        interface_config = f"""[Interface]
-PrivateKey = {private_key}
-Address = 10.0.0.1/24
-ListenPort = 51820
-
-"""
-        
-        print("    [*] Writing interface config to disk...")
-        self.interface_manager.create(self.iface_name, interface_config)
-        print("    [+] Interface config created")
-    
-    def _find_public_ipv6(self) -> str | None:
-        """Find public IPv6 address of the system"""
-        try:
-            # Try to get IPv6 using socket
-            s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-            s.connect(("2001:4860:4860::8888", 80))  # Google's public DNS
-            ipv6 = s.getsockname()[0]
-            s.close()
-            return ipv6
-        except Exception:
-            return None
+   
 
     def start_peer_discovery(self):
         """Start the peer discovery thread"""
@@ -165,14 +144,20 @@ ListenPort = 51820
             try:
                 # Get known members from group
                 members_info = self.group.get_known_members(known_members)
+
                 
                 if members_info:
                     print(f"[*] Found {len(members_info)} known member(s), updating WireGuard...")
                 
                 # Add/update peers in WireGuard
                 for member in members_info:
+
+                    payload = member["payload"]
+                    issued_at = payload['issued_at']
+                    #print(issued_at)
+                    
                     self._add_or_update_peer_live(member)
-                    print(f"    [+] Updated peer: {member['name']}")
+                    print(f"    [+] Updated peer: {member['name']} posted at {issued_at}")
                 
                 # Sleep before next discovery
                 time.sleep(threshold)  # Poll every [threshold] seconds
@@ -210,7 +195,7 @@ ListenPort = 51820
         except Exception as e:
             print(f"[-] Failed to add/update peer: {e}")
 
-    def add_peer(self, name: str, rsa_pub_key: str):
+    def add_friend(self, name: str, rsa_pub_key: str):
         """Add a peer to the local config"""
 
         rsa_pub_key = rsa_pub_key.replace('\\n','\n').replace(' ','')
@@ -227,13 +212,14 @@ ListenPort = 51820
         members.append({"name": name, "rsa_public_key": rsa_pub_key})
         config["members"] = members
         
-        with open(self.config_file, "w") as f:
+        with open(self.distribute_config_file, "w") as f:
             json.dump(config, f, indent=4)
         
         print(f"[+] Member '{name}' added to config")
 
-    def remove_peer(self, name: str):
-        """Remove a peer from config and live WireGuard if up"""
+
+    def remove_friend(self, name: str):
+        """Remove a peer from config"""
         print(f"[*] Removing peer '{name}' from config...")
         config = conf_loader.load_config_file()
         members = config.get("members", [])
@@ -247,9 +233,14 @@ ListenPort = 51820
             return
         
         config["members"] = members
-        with open(self.config_file, "w") as f:
+        with open(self.distribute_config_file, "w") as f:
             json.dump(config, f, indent=4)
-        
+
+
+
+    def deactive_peer(self):
+        """ remuve live WireGuard if up """
+
         # Remove from live interface if it's up
         if self.interface and self.interface._is_up():
             try:
@@ -297,7 +288,7 @@ if __name__ == "__main__":
                         break
                     peer_pubkey = input(f"  Enter {peer_name}'s RSA public key: ").strip()
                     if peer_pubkey:
-                        manager.add_peer(peer_name, peer_pubkey)
+                        manager.add_friend(peer_name, peer_pubkey)
                         print()
                 print("[+] Done adding peers\n")
             
@@ -315,7 +306,7 @@ if __name__ == "__main__":
                         peer_name = input("  Enter peer name to remove (or 'done'): ").strip()
                         if peer_name.lower() == 'done':
                             break
-                        manager.remove_peer(peer_name)
+                        manager.remove_friend(peer_name)
                         print()
                 print("[+] Done\n")
             

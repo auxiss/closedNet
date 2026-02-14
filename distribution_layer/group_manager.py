@@ -65,13 +65,14 @@ class Group:
 
     def get_known_members(self, known_members: list[dict]) -> list[dict]:
         members_gists = self.get_members()
-        print(f'\nfaound: {len(members_gists)} gists with the group name')
+        print(f"\nfaound: {len(members_gists)} gists with '{self.group_name}' is the discription.")
         known_members_gists = []
 
         for member in members_gists:
             pub_key = member['sender_pub_key']
             payload = member['payload']
             member_name = payload['username']
+
 
             #print(member_name)
 
@@ -145,8 +146,37 @@ class Group:
                         pass
                 
         print(f'{len(known_members_gists)}/{len(members_gists)} whare known')
-        return known_members_gists
+
+        #only the newest for each name
+        new_posts = self.find_newest_post(known_members_gists)
+
+        return new_posts
          
+
+    def find_newest_post(self, known_members_gists: list[dict]) -> list[dict]:
+        newest_by_name = {}
+
+        for post in known_members_gists:
+            name = post["name"]
+            issued_at = _parse_issued_at(post["payload"]["issued_at"])
+
+            if name not in newest_by_name:
+                newest_by_name[name] = (issued_at, post)
+            else:
+                if issued_at > newest_by_name[name][0]:
+                    newest_by_name[name] = (issued_at, post)
+
+        return [entry[1] for entry in newest_by_name.values()]
+
+
+        
+        
+
+
+
+
+
+
 
 def _to_public_key_obj(maybe_pem):
                         if maybe_pem is None:
@@ -184,7 +214,15 @@ def _to_public_key_obj(maybe_pem):
                         return None
 
 
+from datetime import datetime, timezone
 
+def _parse_issued_at(value):
+    if isinstance(value, int):
+        # assume unix timestamp
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    raise ValueError(f"Unsupported issued_at type: {type(value)}")
 
 
 def test1():
@@ -211,8 +249,9 @@ def test1():
 
     members = group.get_known_members(known_members)
     for member in members:
+        print('\n---->')
         print(f"Member Name: {member['payload']['username']}")
-        print(f"Member Public Key: {member['pub_key'].decode()}")
+        #print(f"Member Public Key: {member['pub_key'].decode()}")
         print(f"Member Endpoint: {member['payload']['endpoint']}")
 
 

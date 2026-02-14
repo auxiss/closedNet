@@ -1,4 +1,4 @@
-import time
+from datetime import datetime, timezone
 from distribution_layer import blake2b_wrapper as blake
 import json
 from distribution_layer import rsa_enryption as rsa
@@ -11,7 +11,7 @@ def create_payload(endpoint: str,
         "endpoint": endpoint,
         "username": username,
         "wg_pk": wg_pk,
-        "issued_at": int(time.time()),
+        "issued_at": datetime.now(timezone.utc).isoformat(),
     }
     return payload
 
